@@ -100,7 +100,7 @@ void Etapa3() { //EMERGENCIA
   }
 }
 
-void Etapa4(int inversor) { // Fins de curso  atingido
+void Etapa4() { // Fins de curso  atingido
   // Pisca Luz branca e dá apito
   tempo = millis();
   int estado = 0;
@@ -168,17 +168,17 @@ void setup() {
   digitalWrite(B1_ACIONA, LOW);
   digitalWrite(B2_ACIONA, LOW);
   Etapa0();
-  attachInterrupt(B0, Etapa3, FALLING);
-  attachInterrupt(LDR, Etapa5, RISING);
+  attachInterrupt(B0, Etapa3, RISING);
+  attachInterrupt(LDR, Etapa5, FALLING);
 }
 
 void loop() {
-  
-  if (digitalRead(B0) == LOW) {
+
+  if (digitalRead(B0) == HIGH) {
     Etapa3();
   }
   else {
-    if (digitalRead(B1) == LOW || digitalRead(B2) == LOW) {
+    if (digitalRead(B1) == LOW && digitalRead(SW_DOWN) == HIGH|| digitalRead(B2) == LOW && digitalRead(SW_UP) == HIGH) {
       Etapa1_2(ON,OFF);
     }
     else {
@@ -186,12 +186,11 @@ void loop() {
     }
   }
   if (digitalRead(SW_UP) == LOW) {
-    Etapa4(ON);
+    Etapa4();
   }
-  if (digitalRead(SW_DOWN) == LOW) {
+  if (digitalRead(SW_DOWN) == LOW ||digitalRead(LDR)==LOW) {
     Etapa5();
   }
-
   if(sensorIR.decode()){
      switch(sensorIR.decodedIRData.decodedRawData){
        case 0xBA45FF00:{ // descida
@@ -220,4 +219,5 @@ void loop() {
      Etapa0();
      sensorIR.resume();
     }
+    delay(1);
 }
