@@ -2,7 +2,7 @@
 #include <IRremote.h>
 
 #define TempoAcionado 5000 // tempo acionado
-
+#define FatorTempo   200
 /*
    CH- BA45FF00
    CH  B946FF00
@@ -44,10 +44,9 @@ typedef enum estados {
 IRrecv sensorIR(RECEPTOR);
 
 unsigned long int tempo = 0;
-int inversor = 0;
 
 //Funções
-void etapa0() {
+void Etapa0() {
   // Acende luz branca
   Serial.println("Etapa 0");
   digitalWrite(BUZZER, LOW);
@@ -56,19 +55,36 @@ void etapa0() {
   digitalWrite(GREEN_LIGHT, LOW);
 }
 
-void etapa1_2() { //etapa 1 e 2 nenhum fim de curso ativado
+void Etapa1_2(int inversor, int direcao) { //etapa 1 e 2 nenhum fim de curso ativado
   // Acende luz verde
   Serial.println("Etapa 1 e 2");
   digitalWrite(BUZZER, LOW); //colocar barulho
   digitalWrite(RED_LIGHT, LOW);
   digitalWrite(WHITE_LIGHT, LOW);
   digitalWrite(GREEN_LIGHT, HIGH);
+  if(inversor == OFF){
+   tempo = millis();
+   while (millis() - tempo < TempoAcionado) {
+      if(direcao == SUBIDA){
+        digitalWrite(B1_ACIONA,LOW);
+        digitalWrite(B2_ACIONA,HIGH);
+      }
+      else{
+        digitalWrite(B1_ACIONA,HIGH);
+        digitalWrite(B2_ACIONA,LOW);
+      }
+    } 
+  }
+  digitalWrite(B1_ACIONA,LOW);
+  digitalWrite(B2_ACIONA,LOW);
 
 }
 
-void etapa3() { //EMERGENCIA
+void Etapa3() { //EMERGENCIA
   // Acende luz vermelha e apaga as outras
   // Fica apitando (alarme)
+  digitalWrite(B1_ACIONA,LOW);
+  digitalWrite(B2_ACIONA,LOW);
   while (true) {
     Serial.println("Etapa 3");
     digitalWrite(BUZZER, HIGH);
@@ -84,35 +100,42 @@ void etapa3() { //EMERGENCIA
   }
 }
 
-void etapa4() { // Fins de curso  atingido
+void Etapa4(int inversor) { // Fins de curso  atingido
   // Pisca Luz branca e dá apito
   tempo = millis();
   int estado = 0;
   Serial.println("Etapa 4");
   while (millis() - tempo < TempoAcionado) {
-    if(millis()%200 == 0){
-      estado = !estado;
-    }
-    digitalWrite(WHITE_LIGHT, estado);
-    digitalWrite(BUZZER, estado);
-  }
-  digitalWrite(BUZZER, LOW); //colcoar barulho
-  digitalWrite(WHITE_LIGHT, LOW);
-}
-
-void etapa5() { //Barreira
-  tempo = millis();
-  int estado = 0;
-  Serial.println("Etapa 5");
-  while (millis() - tempo < TempoAcionado) {
-    digitalWrite(B1_ACIONA, HIGH);
-    if(millis()%100 == 0){
+    digitalWrite(B1_ACIONA, LOW);
+    digitalWrite(B2_ACIONA, HIGH);
+    if(millis()%FatorTempo == 0){
       estado = !estado;
     }
     digitalWrite(WHITE_LIGHT, estado);
     digitalWrite(BUZZER, estado);
   }
   digitalWrite(B1_ACIONA, LOW);
+  digitalWrite(B2_ACIONA, LOW);
+  digitalWrite(BUZZER, LOW);
+  Serial.println("Fim da Etapa 5");
+  digitalWrite(WHITE_LIGHT, LOW);
+}
+
+void Etapa5() { //Barreira
+  tempo = millis();
+  int estado = 0;
+  Serial.println("Etapa 5");
+  while (millis() - tempo < TempoAcionado) {
+    digitalWrite(B1_ACIONA, HIGH);
+    digitalWrite(B2_ACIONA, LOW);
+    if(millis()%FatorTempo == 0){
+      estado = !estado;
+    }
+    digitalWrite(WHITE_LIGHT, estado);
+    digitalWrite(BUZZER, estado);
+  }
+  digitalWrite(B1_ACIONA, LOW);
+  digitalWrite(B2_ACIONA, LOW);
   digitalWrite(BUZZER, LOW);
   Serial.println("Fim da Etapa 5");
   digitalWrite(WHITE_LIGHT, LOW);
@@ -144,72 +167,57 @@ void setup() {
 
   digitalWrite(B1_ACIONA, LOW);
   digitalWrite(B2_ACIONA, LOW);
-  etapa0;
-  attachInterrupt(B0, etapa3, FALLING);
-  attachInterrupt(LDR, etapa5, RISING);
-  inversor = 0;
-
+  Etapa0();
+  attachInterrupt(B0, Etapa3, FALLING);
+  attachInterrupt(LDR, Etapa5, RISING);
 }
 
 void loop() {
+  
   if (digitalRead(B0) == LOW) {
-    inversor = 1;
-    etapa3();
+    Etapa3();
   }
   else {
     if (digitalRead(B1) == LOW || digitalRead(B2) == LOW) {
-      inversor = 1;
-      etapa1_2();
+      Etapa1_2(ON,OFF);
     }
     else {
-      etapa0();
+      Etapa0();
     }
   }
   if (digitalRead(SW_UP) == LOW) {
-    etapa4();
+    Etapa4(ON);
   }
   if (digitalRead(SW_DOWN) == LOW) {
-    etapa5();
+    Etapa5();
   }
-  /*
-    if(sensorIR.decode() && inversor == 0){
-       switch(sensorIR.decodedIRData.decodedRawData){
-         case 0xF609BF00:{ // descida
-           Serial.println("CH-");
-           digitalWrite(B1_ACIONA,LOW);
-           digitalWrite(B2_ACIONA,HIGH);
-           etapa1_2();
-           digitalWrite(B1_ACIONA,LOW);
-           digitalWrite(B2_ACIONA,LOW);
-           break;
-         }
-         case 0xFF00BF00:{ // emergencia
-           digitalWrite(B1_ACIONA,LOW);
-           digitalWrite(B2_ACIONA,LOW);
-           etapa_3();
-           break;
-         }
-         case 0xFE01BF00:{ // subida
-           digitalWrite(B1_ACIONA,HIGH);
-           digitalWrite(B2_ACIONA,LOW);
-           Serial.println("CH+");
-           etapa1_2();
-           digitalWrite(B1_ACIONA,LOW);
-           digitalWrite(B2_ACIONA,LOW);
-           break;
-         }
-         case 0xF609FF00:{
-           Serial.println("EQ");
-           break;
-         }
-         default:{
-            etapa0();
-           Serial.println("NULO");
-           break;
-         }
 
-        }
-     delay(5000);
+  if(sensorIR.decode()){
+     switch(sensorIR.decodedIRData.decodedRawData){
+       case 0xBA45FF00:{ // descida
+         Serial.println("CH-");
+         Etapa1_2(OFF,DESCIDA);
+         break;
+       }
+       case 0xB946FF00:{ // emergencia
+         Etapa3();
+         break;
+       }
+       case 0xB847FF00:{ // subida
+         Serial.println("CH+");
+         Etapa1_2(OFF,SUBIDA);
+         break;
+       }
+       case 0xF609FF00:{
+         Serial.println("EQ");
+         break;
+       }
+       default:{
+         Serial.println("NULO");
+         break;
+       }
+      }
+     Etapa0();
      sensorIR.resume();
-    }*/
+    }
 }
